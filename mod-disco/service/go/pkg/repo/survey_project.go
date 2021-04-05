@@ -20,15 +20,15 @@ func (md *ModDiscoRepo) NewSurveyProject(ctx context.Context, in *discoRpc.NewSu
 	// make sure that the sys-account project exists
 	exists, sysAccountProjectId, err := md.sysAccountProjectExists(ctx, in.SysAccountProjectRefId, in.SysAccountProjectRefName)
 	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "cannot insert disco project, non existent sys-account-project: %v", sharedAuth.Error{Reason: sharedAuth.ErrInvalidParameters})
+		return nil, status.Errorf(codes.InvalidArgument, "cannot insert survey project, non existent sys-account-project: %v", sharedAuth.Error{Reason: sharedAuth.ErrInvalidParameters})
 	}
 	if !exists {
-		return nil, status.Errorf(codes.InvalidArgument, "cannot insert disco project: non-existent sys-account-project", sharedAuth.Error{Reason: sharedAuth.ErrInvalidParameters})
+		return nil, status.Errorf(codes.InvalidArgument, "cannot insert survey project: non-existent sys-account-project", sharedAuth.Error{Reason: sharedAuth.ErrInvalidParameters})
 	}
 	in.SysAccountProjectRefId = sysAccountProjectId
 	allowed := md.allowDiscoProject(ctx, "", in.SysAccountProjectRefId)
 	if !allowed {
-		return nil, status.Errorf(codes.PermissionDenied, "cannot insert disco project: permission denied", sharedAuth.Error{Reason: sharedAuth.ErrInsufficientRights})
+		return nil, status.Errorf(codes.PermissionDenied, "cannot insert survey project: permission denied", sharedAuth.Error{Reason: sharedAuth.ErrInsufficientRights})
 	}
 	md.log.Debugf("SysAccountProjectId: %s", sysAccountProjectId)
 	sp, err := md.store.InsertSurveyProject(in)
