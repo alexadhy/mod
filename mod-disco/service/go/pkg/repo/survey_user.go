@@ -48,7 +48,16 @@ func (md *ModDiscoRepo) NewSurveyUser(ctx context.Context, in *discoRpc.NewSurve
 		return nil, err
 	}
 
-	alreadyPledgedMetrics := metrics.GetOrCreateCounter(fmt.Sprintf(telemetry.ModDiscoLabelledMetricsFormat, telemetry.METRICS_ALREADY_PLEDGED, discoProject.SysAccountProjectRefId, discoProject.ProjectId))
+	if err = md.updateRoleOnJoin(ctx, discoProject.SysAccountProjectRefId); err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to create / update role")
+	}
+
+	alreadyPledgedMetrics := metrics.GetOrCreateCounter(fmt.Sprintf(
+		telemetry.ModDiscoLabelledMetricsFormat,
+		telemetry.METRICS_ALREADY_PLEDGED,
+		discoProject.SysAccountProjectRefId,
+		discoProject.ProjectId,
+	))
 	go func() {
 		alreadyPledgedMetrics.Inc()
 	}()
@@ -62,7 +71,7 @@ func (md *ModDiscoRepo) GetSurveyUser(ctx context.Context, in *discoRpc.IdReques
 	}
 	params := map[string]interface{}{}
 	if in.GetSurveyProjectId() != "" {
-		params["survey_project_id"] = in.GetSurveyProjectId()
+		params["survey_project_ref_id"] = in.GetSurveyProjectId()
 	}
 	if in.GetSurveyUserId() != "" {
 		params["survey_user_id"] = in.GetSurveyUserId()
@@ -143,7 +152,9 @@ func (md *ModDiscoRepo) UpdateSurveyUser(ctx context.Context, in *discoRpc.Updat
 	if in == nil || in.SurveyUserId == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "cannot update survey user: %v", sharedAuth.Error{Reason: sharedAuth.ErrInvalidParameters})
 	}
-	daoSurveyUser, err := md.store.GetSurveyUser(map[string]interface{}{"survey_user_id": in.SurveyUserId})
+	daoSurveyUser, err := md.store.GetSurveyUser(map[string]interface{}{
+		"survey_user_id": in.SurveyUserId,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +165,30 @@ func (md *ModDiscoRepo) UpdateSurveyUser(ctx context.Context, in *discoRpc.Updat
 	if err := md.store.UpdateSurveyUser(in); err != nil {
 		return nil, err
 	}
-	daoSurveyUser, err = md.store.GetSurveyUser(map[string]interface{}{"survey_user_id": in.SurveyUserId})
+	surveyProject, err := md.GetSurveyProject(
+		ctx,
+		&discoRpc.IdRequest{SurveyProjectId: daoSurveyUser.SurveyProjectRefId},
+	)
+	if err != nil {
+		return nil, status.Errorf(
+			codes.InvalidArgument,
+			"no survey project exists with id: %s",
+			daoSurveyUser.SurveyProjectRefId,
+		)
+	}
+	discoProject, err := md.GetDiscoProject(
+		ctx,
+		&discoRpc.IdRequest{SysAccountProjectId: surveyProject.SysAccountProjectRefId},
+	)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "no project exists with id: %s", surveyProject.SysAccountProjectRefId)
+	}
+	if err = md.updateRoleOnJoin(ctx, discoProject.SysAccountProjectRefId); err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to create / update role")
+	}
+	daoSurveyUser, err = md.store.GetSurveyUser(map[string]interface{}{
+		"survey_user_id": in.SurveyUserId,
+	})
 	if err != nil {
 		return nil, err
 	}

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
-import 'package:mod_disco/core/shared_repositories/disco_project_repo.dart';
 import 'package:mod_disco/core/shared_repositories/survey_project_repo.dart';
 import 'package:mod_disco/core/shared_repositories/survey_user_repo.dart';
 import 'package:mod_disco/core/shared_services/dynamic_widget_service.dart';
@@ -28,6 +27,7 @@ class SupportRoleViewModel extends BaseModel {
   NewSurveyUserRequest get nsuReq => _nsuReq;
 
   bool get isLoading => _isLoading;
+
   bool get isLoggedOn => _isLoggedOn;
 
   List<SupportRoleType> get supportRoles => _srtList;
@@ -116,38 +116,97 @@ class SupportRoleViewModel extends BaseModel {
                 error: false,
               );
             });
-            await DiscoProjectRepo.getProjectDetails(
-                    accountProjRefId: _project.id)
-                .then((res) {
-              DiscoProjectRepo.updateDiscoProject(
-                discoProjectId: res.projectId,
-                pledged: res.alreadyPledged + 1,
-              );
-            });
           },
         ),
       );
     } else {
-      await SurveyUserRepo.newSurveyUser(
+      final _su = await SurveyUserRepo.getSurveyUser(
         surveyProjectId: _nsuReq.surveyProjectRefId,
-        sysAccountAccountRefId: _nsuReq.sysAccountUserRefId,
-        surveyUserName: _nsuReq.surveyUserName,
-        userNeedsValueList: _nsuReq.userNeedValues,
-        supportRoleValueList: _srvList,
-      ).then((_) {
-        notify(
-          context: context,
-          message: "You've joined ${project.name}, login to see your detail",
-          error: false,
-        );
-      });
-      await DiscoProjectRepo.getProjectDetails(accountProjRefId: _project.id)
-          .then((res) {
-        DiscoProjectRepo.updateDiscoProject(
-          discoProjectId: res.projectId,
-          pledged: res.alreadyPledged + 1,
-        );
-      });
+        sysAccountUserRefId: _nsuReq.sysAccountUserRefId,
+      ).then((s) => s);
+      if (_su == null) {
+        await SurveyUserRepo.newSurveyUser(
+          surveyProjectId: _nsuReq.surveyProjectRefId,
+          sysAccountAccountRefId: _nsuReq.sysAccountUserRefId,
+          surveyUserName: _nsuReq.surveyUserName,
+          userNeedsValueList: _nsuReq.userNeedValues,
+          supportRoleValueList: _srvList,
+        ).then((_) {
+          notify(
+            context: context,
+            message: "You've joined ${project.name}",
+            error: false,
+          );
+        }).catchError((e) {
+          notify(
+            context: context,
+            message: "Error submitting survey user ${e.toString()}",
+            error: true,
+          );
+        });
+      } else {
+        final _unvs =
+            _convertUserNeedsValues(_su.userNeedValues, _nsuReq.userNeedValues);
+        final _srvs = _convertSupportRoleValues(
+            _su.supportRoleValues, _nsuReq.supportRoleValues);
+        await SurveyUserRepo.updateSurveyUser(
+          surveyUserId: _su.surveyUserId,
+          userNeedsValueList: _unvs,
+          supportRoleValueList: _srvs,
+        )
+            .then((_) => notify(
+                context: context,
+                message: "Successfully updated your survey value",
+                error: false))
+            .catchError((e) {
+          notify(
+            context: context,
+            message: "error updating your survey value: ${e.toString()}",
+            error: true,
+          );
+        });
+      }
     }
   }
+}
+
+List<UserNeedsValue> _convertUserNeedsValues(
+    List<UserNeedsValue> oldValues, List<NewUserNeedsValue> newValues) {
+  List<UserNeedsValue> updatedValues =
+      List<UserNeedsValue>.empty(growable: true);
+  oldValues.forEach((oldVal) {
+    newValues.forEach((newVal) {
+      if (oldVal.userNeedsTypeRefId == newVal.userNeedsTypeRefId) {
+        updatedValues.add(UserNeedsValue(
+          id: oldVal.id,
+          surveyUserRefId: oldVal.surveyUserRefId,
+          userNeedsTypeRefId: newVal.userNeedsTypeRefId,
+          comments: newVal.comments,
+        ));
+      }
+    });
+  });
+  return updatedValues;
+}
+
+List<SupportRoleValue> _convertSupportRoleValues(
+    List<SupportRoleValue> oldValues, List<NewSupportRoleValue> newValues) {
+  List<SupportRoleValue> updatedValues =
+      List<SupportRoleValue>.empty(growable: true);
+
+  oldValues.forEach((oldVal) {
+    newValues.forEach((newVal) {
+      if (oldVal.supportRoleTypeRefId == newVal.supportRoleTypeRefId) {
+        updatedValues.add(SupportRoleValue(
+          id: oldVal.id,
+          surveyUserRefId: oldVal.surveyUserRefId,
+          supportRoleTypeRefId: newVal.supportRoleTypeRefId,
+          pledged: newVal.pledged,
+          comment: newVal.comment,
+        ));
+      }
+    });
+  });
+
+  return updatedValues;
 }

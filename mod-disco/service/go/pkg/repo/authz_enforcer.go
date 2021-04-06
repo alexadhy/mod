@@ -67,7 +67,7 @@ func (md *ModDiscoRepo) allowSurveyUser(ctx context.Context, userId string) bool
 	}
 	allowed, err := md.checkAllow(ctx, in)
 	if err != nil {
-		md.log.Debugf("error while checking for permission on create new disco project: %v", err)
+		md.log.Debugf("error while checking for permission on create survey user: %v", err)
 		return false
 	}
 	return allowed

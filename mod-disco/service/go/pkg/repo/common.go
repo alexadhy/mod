@@ -2,6 +2,7 @@ package repo
 
 import (
 	"context"
+	"errors"
 	"strconv"
 
 	"google.golang.org/grpc/codes"
@@ -98,4 +99,30 @@ func (md *ModDiscoRepo) checkExists(ctx context.Context, in *sysExistsInput) (bo
 		return false, "", status.Errorf(codes.InvalidArgument, "does not exists")
 	}
 	return true, replyResp[in.idKey].(string), nil
+}
+
+func (md *ModDiscoRepo) updateRoleOnJoin(ctx context.Context, projectId string) error {
+	params := map[string]interface{}{
+		"sys_account_project_id": projectId,
+	}
+	payload, err := sysCoreSvc.MarshalToBytes(params)
+	if err != nil {
+		return err
+	}
+	res, err := md.busClient.Broadcast(ctx, &coreRpc.EventRequest{
+		EventName:   "onJoinNewProject",
+		Initiator:   "mod-disco",
+		JsonPayload: payload,
+	})
+	if err != nil {
+		return err
+	}
+	replyResp, err := sysCoreSvc.UnmarshalToMap(res.GetReply())
+	if err != nil {
+		return err
+	}
+	if replyResp["ok"].(bool) != true {
+		return errors.New("error: unable to update role")
+	}
+	return nil
 }

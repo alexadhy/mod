@@ -159,7 +159,7 @@ func (md *ModDiscoRepo) UpdateDiscoProject(ctx context.Context, in *discoRpc.Upd
 	}
 	allowed := md.allowDiscoProject(ctx, "", daoDiscoProject.SysAccountProjectRefId)
 	if !allowed {
-		return nil, status.Errorf(codes.PermissionDenied, "cannot insert disco project: permission denied", sharedAuth.Error{Reason: sharedAuth.ErrInsufficientRights})
+		return nil, status.Errorf(codes.PermissionDenied, "cannot update disco project: permission denied", sharedAuth.Error{Reason: sharedAuth.ErrInsufficientRights})
 	}
 	if in.GetImageUploads() != nil && len(in.GetImageUploads()) != 0 {
 		for _, imgBytes := range in.GetImageUploads() {
@@ -194,7 +194,7 @@ func (md *ModDiscoRepo) DeleteDiscoProject(ctx context.Context, in *discoRpc.IdR
 	}
 	allowed := md.allowDiscoProject(ctx, "", daoDiscoProject.SysAccountProjectRefId)
 	if !allowed {
-		return nil, status.Errorf(codes.PermissionDenied, "cannot insert disco project: permission denied", sharedAuth.Error{Reason: sharedAuth.ErrInsufficientRights})
+		return nil, status.Errorf(codes.PermissionDenied, "cannot delete disco project: permission denied", sharedAuth.Error{Reason: sharedAuth.ErrInsufficientRights})
 	}
 	err = md.store.DeleteDiscoProject(in.DiscoProjectId, in.SysAccountProjectId, in.SysAccountOrgId)
 	if err != nil {

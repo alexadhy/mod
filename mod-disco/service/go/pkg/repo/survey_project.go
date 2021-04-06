@@ -119,7 +119,7 @@ func (md *ModDiscoRepo) UpdateSurveyProject(ctx context.Context, in *discoRpc.Up
 	}
 	allowed := md.allowDiscoProject(ctx, "", daoSurveyProj.SysAccountProjectRefId)
 	if !allowed {
-		return nil, status.Errorf(codes.PermissionDenied, "cannot insert disco project: permission denied", sharedAuth.Error{Reason: sharedAuth.ErrInsufficientRights})
+		return nil, status.Errorf(codes.PermissionDenied, "cannot update survey project: permission denied", sharedAuth.Error{Reason: sharedAuth.ErrInsufficientRights})
 	}
 	if err := md.store.UpdateSurveyProject(in); err != nil {
 		return nil, err
@@ -141,7 +141,7 @@ func (md *ModDiscoRepo) DeleteSurveyProject(ctx context.Context, in *discoRpc.Id
 	}
 	allowed := md.allowDiscoProject(ctx, "", daoSurveyProj.SysAccountProjectRefId)
 	if !allowed {
-		return nil, status.Errorf(codes.PermissionDenied, "cannot insert disco project: permission denied", sharedAuth.Error{Reason: sharedAuth.ErrInsufficientRights})
+		return nil, status.Errorf(codes.PermissionDenied, "cannot delete survey project: permission denied", sharedAuth.Error{Reason: sharedAuth.ErrInsufficientRights})
 	}
 	err = md.store.DeleteSurveyProject(in.SurveyProjectId)
 	if err != nil {

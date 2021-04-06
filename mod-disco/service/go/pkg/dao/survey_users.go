@@ -89,8 +89,12 @@ func (sp SurveyUser) CreateSQL() []string {
 
 func (m *ModDiscoDB) GetSurveyUser(filters map[string]interface{}) (*SurveyUser, error) {
 	var sp SurveyUser
-	selectStmt, args, err := sysCoreSvc.BaseQueryBuilder(filters, SurveyUsersTableName, m.surveyUserColumns,
-		"eq").ToSql()
+	selectStmt, args, err := sysCoreSvc.BaseQueryBuilder(
+		filters,
+		SurveyUsersTableName,
+		m.surveyUserColumns,
+		"eq",
+	).ToSql()
 	if err != nil {
 		return nil, err
 	}
@@ -216,12 +220,12 @@ func (m *ModDiscoDB) UpdateSurveyUser(usp *discoRpc.UpdateSurveyUserRequest) err
 		for _, srv := range usp.GetSupportRoleValues() {
 			var s SupportRoleValue
 			var actualSrv *SupportRoleValue
-			srvBytes, err := sysCoreSvc.MarshalToBytes(srv)
-			if err != nil {
+			srvBytes, e := sysCoreSvc.MarshalToBytes(srv)
+			if e != nil {
 				return err
 			}
-			if err := sharedConfig.UnmarshalJson(srvBytes, &s); err != nil {
-				return err
+			if e = sharedConfig.UnmarshalJson(srvBytes, &s); e != nil {
+				return e
 			}
 			actualSrv, err = m.GetSupportRoleValue(s.Id)
 			if err != nil {
