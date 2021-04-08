@@ -30,6 +30,7 @@ class SurveyProjectViewModel extends BaseModel {
   Map<String, Map<String, List<UserNeedsType>>> _userNeedsQuestionMap =
       Map<String, Map<String, List<UserNeedsType>>>();
   bool _isLoggedOn = false;
+  SurveyUser _currentSurveyUser;
 
   Map<String, Map<String, String>> dwService = {};
   bool _isLoading = false;
@@ -74,11 +75,11 @@ class SurveyProjectViewModel extends BaseModel {
     await _isLoggedIn();
     if (_isLoggedOn) {
       _accountId = getAccountId();
+      await _fetchCurrentSurveyUser();
     } else {
       _accountId = await SurveyProjectRepo.getNewTempId();
     }
     _surveyUser.sysAccountUserRefId = _accountId;
-    notifyListeners();
     await SurveyProjectRepo.listSurveyProjects(
             sysAccountProjectRefId: _projectId, orderBy: 'name')
         .then((res) {
@@ -86,11 +87,10 @@ class SurveyProjectViewModel extends BaseModel {
       res.forEach((sp) {
         _userNeedsLists.add(sp.userNeedTypes);
       });
-      notifyListeners();
       _userNeedsQuestionMap =
           SurveyProjectRepo.getGroupedUserNeedsType(_userNeedsLists);
-      notifyListeners();
     });
+    notifyListeners();
     initializeDropdownSelectionData();
     _setLoading(false);
   }
@@ -106,11 +106,6 @@ class SurveyProjectViewModel extends BaseModel {
 //
   void initializeDropdownSelectionData() {
     if (this.dwService.length == 0) {
-      // We need to track which option of the dropdown was selected
-      // userNeedsList.forEach((group) {
-      //   String key = generateDropdownKey(group);
-      //   this.dwService[key] = null;
-      // });
       this._userNeedsQuestionMap.forEach((key, value) {
         _userNeedsQuestionMap[key]
             .forEach((questionTypeKey, questionTypeValues) {
@@ -119,8 +114,8 @@ class SurveyProjectViewModel extends BaseModel {
             final grouped = groupBy(
                 questionTypeValues, (UserNeedsType unt) => unt.questionGroup);
             grouped.forEach((k, v) {
-              String key = generateDropdownKey(v);
-              this.dwService[k] = {key: null};
+              // String key = generateDropdownKey(v);
+              this.dwService[k] = {k: null};
             });
           }
         });
@@ -128,13 +123,13 @@ class SurveyProjectViewModel extends BaseModel {
     }
   }
 
-  String generateDropdownKey(List<UserNeedsType> userNeeds) {
-    String key = '';
-    userNeeds.forEach((userNeed) => key += '|' + userNeed.id);
-
-    // Remove the | off the font
-    return key.substring(1);
-  }
+  // String generateDropdownKey(List<UserNeedsType> userNeeds) {
+  //   String key = '';
+  //   userNeeds.forEach((userNeed) => key += '|' + userNeed.id);
+  //
+  //   // Remove the | off the font
+  //   return key.substring(1);
+  // }
 
   void navigateNext(BuildContext context) {
     List<NewUserNeedsValue> _untList = [];
@@ -218,11 +213,28 @@ class SurveyProjectViewModel extends BaseModel {
     );
   }
 
+  Future<void> _fetchCurrentSurveyUser() async {
+    await SurveyUserRepo.getSurveyUser(
+      sysAccountUserRefId: _accountId,
+      sysAccountProjectRefId: _projectId,
+    )
+        .then((_cs) => _currentSurveyUser = _cs)
+        .catchError((_) => _currentSurveyUser = null);
+  }
+
   List<Widget> buildSurveyUserNeeds(BuildContext context) {
     int questionCount = 1;
     const SizedBox spacer = SizedBox(height: 8.0);
     List<Widget> viewWidgetList = [];
-    _surveyUser..surveyUserName = _accountId + randomString(8);
+    // fill up survey user's name
+    _surveyUser
+      ..surveyUserName = _currentSurveyUser != null
+          ? _currentSurveyUser.surveyUserName
+          : _accountId + randomString(8);
+    // each question in the survey can be categorized to:
+    // 1. dropdown
+    // 2. textfield
+    // 3. single checkbox
     this._userNeedsQuestionMap.forEach((key, value) {
       _userNeedsQuestionMap[key].forEach((questionTypeKey, questionTypeValues) {
         switch (questionTypeKey) {
@@ -234,8 +246,6 @@ class SurveyProjectViewModel extends BaseModel {
               Map<String, String> questionData = {};
               v.forEach((userNeed) =>
                   questionData[userNeed.description] = userNeed.id);
-              String dropdownOptionKey =
-                  generateDropdownKey(questionTypeValues);
               _surveyUser
                 ..surveyProjectRefId =
                     questionTypeValues.first.surveyProjectRefId;
@@ -255,7 +265,7 @@ class SurveyProjectViewModel extends BaseModel {
                       DynamicDropdownButton(
                         data: questionData,
                         selectedOption: this.dwService[k]
-                            [dropdownOptionKey], // The selected answer
+                            [k], // The selected answer
                         callbackInjection: (data, selected) {
                           // the onChangedCallback
                           // Because each dropdown option is technically a "question" in the db
@@ -272,9 +282,8 @@ class SurveyProjectViewModel extends BaseModel {
                                 comment: _accountId + "answer",
                                 userNeedsTypeRefId: userNeedId,
                               );
-                              _appendUserNeedsValue(
-                                  newUserNeedValue, dropdownOptionKey);
-                              this.dwService[k][dropdownOptionKey] = selected;
+                              _appendUserNeedsValue(newUserNeedValue, k);
+                              this.dwService[k][k] = selected;
                             } else {
                               // Otherwise set the others to false
                               this.selectNeed(userNeedId, false,
