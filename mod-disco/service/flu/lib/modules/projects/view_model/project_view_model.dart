@@ -1,6 +1,5 @@
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter_modular/flutter_modular.dart';
-import 'package:sys_share_sys_account_service/pkg/shared_repositories/auth_repo.dart';
 import 'package:sys_share_sys_account_service/pkg/shared_repositories/orgproj_repo.dart';
 import 'package:sys_share_sys_account_service/pkg/shared_services/base_model.dart';
 import 'package:sys_share_sys_account_service/sys_share_sys_account_service.dart';
@@ -73,17 +72,12 @@ class ProjectViewModel extends BaseModel {
       void Function(String, List<Org>) nextPageFunc}) async {
     setLoading(true);
     _isLoggedIn();
-    String _accountId = '';
-    if (_isLoggedOn) {
-      _accountId = getAccountId();
-    }
-    await OrgProjRepo.listNonSubbedOrgs(
+    await OrgProjRepo.listUserOrgs(
       orderBy: 'name',
       isDescending: false,
       perPageEntries: perPageEntriesDefault,
       filters: filters,
       currentPageId: _nextPageId,
-      accountId: _accountId,
     ).then((res) async {
       nextPageFunc(res.nextPageId, res.orgs);
     }).catchError((e) {

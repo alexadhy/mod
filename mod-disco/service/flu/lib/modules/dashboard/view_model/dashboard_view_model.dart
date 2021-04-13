@@ -68,6 +68,7 @@ class DashboardViewModel extends BaseModel {
       perPageEntries: perPageEntriesDefault,
       filters: filter,
       matcher: matcher,
+      subscribedOnly: true,
     ).then((resp) {
       notifyListeners();
       nextPageFunc(resp.nextPageId, resp.orgs);
